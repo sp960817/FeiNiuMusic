@@ -42,13 +42,11 @@ packages:
     source: hosted
     version: "1.4.2"
   audio_service:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
-      path: audio_service
-      ref: "br_v0.18.18_ohos"
-      resolved-ref: c37addafcebc615c3cf6feb9e3e40440bd15b0c9
-      url: "https://gitcode.com/CPF-Flutter/fluttertpc_audio_service.git"
-    source: git
+      path: "third_party/audio_service"
+      relative: true
+    source: path
     version: "0.18.18"
   audio_service_platform_interface:
     dependency: transitive

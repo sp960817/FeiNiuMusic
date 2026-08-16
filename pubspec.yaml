@@ -84,10 +84,7 @@ dependencies:
 # public Dart APIs stable while selecting the maintained CPF-Flutter ports.
 dependency_overrides:
   audio_service:
-    git:
-      url: https://gitcode.com/CPF-Flutter/fluttertpc_audio_service.git
-      ref: br_v0.18.18_ohos
-      path: audio_service
+    path: third_party/audio_service
   audio_session:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_audio_session.git

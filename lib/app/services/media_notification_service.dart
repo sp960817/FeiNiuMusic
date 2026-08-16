@@ -111,9 +111,8 @@ class _FeiNiuAudioHandler extends BaseAudioHandler
   String? _lastCoverId;
   Uri? _cachedCoverUri;
 
-  /// 当前曲目封面本地文件路径。当前曲目的 Metadata 用 `file://` 指向它
-  /// （对齐 NagoMusic 实机验证方案），audio_service 按 artCacheFile 让原生
-  /// 侧内嵌 ALBUM_ART Bitmap；妙播媒体卡片读内嵌 Bitmap 显示封面。
+  /// 当前曲目封面本地文件路径。Android 用它内嵌 ALBUM_ART Bitmap；
+  /// HarmonyOS 插件将它解码为 PixelMap 后写入 AVSession.mediaImage。
   String? _cachedCoverPath;
 
   /// 切歌时是否正在解析当前歌曲封面。解析期间抑制 [_syncMediaItem]，
@@ -310,12 +309,17 @@ class _FeiNiuAudioHandler extends BaseAudioHandler
         : '$titleText · $artistText';
     final albumName = song.albumDisplayName;
 
-    // artUri: 当前曲目优先 file:// 本地路径；队列/浏览用 content://。
+    // artUri: 当前曲目优先 file:// 本地路径。HarmonyOS 原生插件会把本地
+    // 文件解码成 PixelMap，避免系统媒体中心无法携带 NAS 鉴权头下载封面。
     Uri? artUri;
     if (song.coverId != null && song.coverId!.isNotEmpty) {
-      if (current && _cachedCoverPath != null && _cachedCoverPath!.isNotEmpty) {
+      final matchesCachedCover = song.coverId == _lastCoverId;
+      if (matchesCachedCover &&
+          _cachedCoverPath != null &&
+          _cachedCoverPath!.isNotEmpty &&
+          (current || io.Platform.isOhos)) {
         artUri = Uri.file(_cachedCoverPath!);
-      } else if (_cachedCoverUri != null) {
+      } else if (matchesCachedCover && _cachedCoverUri != null) {
         artUri = _cachedCoverUri;
       } else {
         // 本地封面尚未就绪时发远程 URL，audio_service 会自动下载并缓存
@@ -931,9 +935,11 @@ class _FeiNiuAudioHandler extends BaseAudioHandler
     if (songChanged) {
       final song = snap.song;
       _cachedCoverUri = null;
+      _cachedCoverPath = null;
+      _lastCoverId = null;
       if (song != null && song.coverId != null && song.coverId!.isNotEmpty) {
         _lastCoverId = song.coverId;
-        if (io.Platform.isAndroid) {
+        if (io.Platform.isAndroid || io.Platform.isOhos) {
           // HyperOS 媒体卡片只在首次渲染 Metadata 时读取 ALBUM_ART（Bitmap），
           // 之后仅更新 artUri（哪怕换成 content://）也不会刷新封面图。
           // 因此这里等本地封面解析完成（content:// / file://，audio_service
@@ -1026,7 +1032,9 @@ class _FeiNiuAudioHandler extends BaseAudioHandler
       size: _systemCoverSize,
     );
     if (localPath != null && localPath.isNotEmpty) {
-      final contentUri = await CoverLocalCache.contentUriForPath(localPath);
+      final contentUri = io.Platform.isAndroid
+          ? await CoverLocalCache.contentUriForPath(localPath)
+          : Uri.file(localPath);
       return (path: localPath, contentUri: contentUri);
     }
     // 回退：老路径下载（file:// 或 null）。
@@ -1101,7 +1109,7 @@ class _FeiNiuAudioHandler extends BaseAudioHandler
     if (current != null &&
         current.coverId != null &&
         current.coverId!.isNotEmpty &&
-        io.Platform.isAndroid &&
+        (io.Platform.isAndroid || io.Platform.isOhos) &&
         _coverResolving) {
       return;
     }

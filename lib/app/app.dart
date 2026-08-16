@@ -103,141 +103,172 @@ class FeiNiuMusicApp extends StatelessWidget {
                         return ValueListenableBuilder<bool>(
                           valueListenable: AppLayoutSettings.tvMode,
                           builder: (context, isTv, _) {
-                        final isWindows = !kIsWeb &&
-                            defaultTargetPlatform == TargetPlatform.windows;
-                        // Windows 桌面端不设 fontFamily 时，Flutter 默认用 Segoe UI，
-                        // 中文字形回退到系统 CJK 字体——拉丁/中文混排时字体不同、
-                        // 字重渲染不一致（有的粗有的细）。统一到微软雅黑解决。
-                        final fontFamily = isWindows ? 'Microsoft YaHei UI' : null;
-                        final lightBase = ThemeData(
-                          colorScheme: ColorScheme.fromSeed(
-                            seedColor: baseSeed,
-                            brightness: Brightness.light,
-                          ),
-                          fontFamily: fontFamily,
-                          useMaterial3: true,
-                          pageTransitionsTheme: const PageTransitionsTheme(
-                            builders: {
-                              TargetPlatform.android:
-                                  CoverPageTransitionsBuilder(),
-                              TargetPlatform.iOS: CoverPageTransitionsBuilder(),
-                              TargetPlatform.macOS:
-                                  CoverPageTransitionsBuilder(),
-                              TargetPlatform.windows:
-                                  CoverPageTransitionsBuilder(),
-                              TargetPlatform.linux:
-                                  CoverPageTransitionsBuilder(),
-                            },
-                          ),
-                        );
-                        final darkBase = ThemeData(
-                          colorScheme: ColorScheme.fromSeed(
-                            seedColor: baseSeed,
-                            brightness: Brightness.dark,
-                          ),
-                          fontFamily: fontFamily,
-                          useMaterial3: true,
-                          pageTransitionsTheme: const PageTransitionsTheme(
-                            builders: {
-                              TargetPlatform.android:
-                                  CoverPageTransitionsBuilder(),
-                              TargetPlatform.iOS: CoverPageTransitionsBuilder(),
-                              TargetPlatform.macOS:
-                                  CoverPageTransitionsBuilder(),
-                              TargetPlatform.windows:
-                                  CoverPageTransitionsBuilder(),
-                              TargetPlatform.linux:
-                                  CoverPageTransitionsBuilder(),
-                            },
-                          ),
-                        );
-                        final lightTheme = _applyDynamic(
-                          lightBase,
-                          dynamicEnabled ? lightDynamic : null,
-                          visualStyle,
-                          isTv,
-                        );
-                        final darkTheme = _applyDynamic(
-                          darkBase,
-                          dynamicEnabled ? darkDynamic : null,
-                          visualStyle,
-                          isTv,
-                        );
-                        final routes = AppRouter.routes;
-                        Route<dynamic> onGenerateRoute(RouteSettings settings) {
-                          final name = settings.name ?? AppRoutes.home;
-                          final target =
-                              routes[name] ?? routes[AppRoutes.home]!;
-                          return buildAppPageRoute<dynamic>(
-                            target,
-                            settings: settings,
-                          );
-                        }
-
-                        return _TvOrientationSync(
-                          tv: isTv,
-                          child: MaterialApp(
-                          title: '飞牛音乐',
-                          navigatorKey: appNavigatorKey,
-                          theme: lightTheme,
-                          darkTheme: darkTheme,
-                          themeMode: mode,
-                          scrollBehavior: const AppScrollBehavior(),
-                          home: _AppStartupGate(
-                            tv: isTv,
-                            onGenerateRoute: onGenerateRoute,
-                          ),
-                          onGenerateRoute: onGenerateRoute,
-                          builder: (context, child) {
-                            final theme = Theme.of(context);
-                            final isDark = theme.brightness == Brightness.dark;
-                            final navColor = theme.colorScheme.surface;
-                            final overlay = SystemUiOverlayStyle(
-                              statusBarColor: Colors.transparent,
-                              statusBarIconBrightness: isDark
-                                  ? Brightness.light
-                                  : Brightness.dark,
-                              statusBarBrightness: isDark
-                                  ? Brightness.dark
-                                  : Brightness.light,
-                              systemNavigationBarColor: navColor,
-                              systemNavigationBarIconBrightness: isDark
-                                  ? Brightness.light
-                                  : Brightness.dark,
-                              systemNavigationBarDividerColor: navColor,
+                            final isWindows =
+                                !kIsWeb &&
+                                defaultTargetPlatform == TargetPlatform.windows;
+                            // Windows 桌面端不设 fontFamily 时，Flutter 默认用 Segoe UI，
+                            // 中文字形回退到系统 CJK 字体——拉丁/中文混排时字体不同、
+                            // 字重渲染不一致（有的粗有的细）。统一到微软雅黑解决。
+                            final fontFamily = isWindows
+                                ? 'Microsoft YaHei UI'
+                                : null;
+                            final lightBase = ThemeData(
+                              colorScheme: ColorScheme.fromSeed(
+                                seedColor: baseSeed,
+                                brightness: Brightness.light,
+                              ),
+                              fontFamily: fontFamily,
+                              useMaterial3: true,
+                              pageTransitionsTheme: const PageTransitionsTheme(
+                                builders: {
+                                  TargetPlatform.android:
+                                      CoverPageTransitionsBuilder(),
+                                  TargetPlatform.iOS:
+                                      CoverPageTransitionsBuilder(),
+                                  TargetPlatform.macOS:
+                                      CoverPageTransitionsBuilder(),
+                                  TargetPlatform.windows:
+                                      CoverPageTransitionsBuilder(),
+                                  TargetPlatform.linux:
+                                      CoverPageTransitionsBuilder(),
+                                },
+                              ),
                             );
-                            Widget content =
-                                AnnotatedRegion<SystemUiOverlayStyle>(
-                                  value: overlay,
-                                  child: child ?? const SizedBox.shrink(),
-                                );
-                            // TV 模式：根焦点域（方向键遍历 + 快捷键）。
-                            // 手机端 isTv=false，完全绕开，行为不变。
-                            if (isTv) {
-                              content = TvFocusScope(child: content);
-                            }
-                            if (visualStyle == AppVisualStyle.miuix) {
-                              final shadMode = switch (mode) {
-                                ThemeMode.light => shad.ThemeMode.light,
-                                ThemeMode.dark => shad.ThemeMode.dark,
-                                ThemeMode.system => shad.ThemeMode.system,
-                              };
-                              content = shad.ShadcnLayer(
-                                theme: buildMiuixShadTheme(
-                                  lightTheme.colorScheme,
-                                ),
-                                darkTheme: buildMiuixShadTheme(
-                                  darkTheme.colorScheme,
-                                ),
-                                themeMode: shadMode,
-                                scaling: const shad.AdaptiveScaling(),
-                                child: content,
+                            final darkBase = ThemeData(
+                              colorScheme: ColorScheme.fromSeed(
+                                seedColor: baseSeed,
+                                brightness: Brightness.dark,
+                              ),
+                              fontFamily: fontFamily,
+                              useMaterial3: true,
+                              pageTransitionsTheme: const PageTransitionsTheme(
+                                builders: {
+                                  TargetPlatform.android:
+                                      CoverPageTransitionsBuilder(),
+                                  TargetPlatform.iOS:
+                                      CoverPageTransitionsBuilder(),
+                                  TargetPlatform.macOS:
+                                      CoverPageTransitionsBuilder(),
+                                  TargetPlatform.windows:
+                                      CoverPageTransitionsBuilder(),
+                                  TargetPlatform.linux:
+                                      CoverPageTransitionsBuilder(),
+                                },
+                              ),
+                            );
+                            final lightTheme = _applyDynamic(
+                              lightBase,
+                              dynamicEnabled ? lightDynamic : null,
+                              visualStyle,
+                              isTv,
+                            );
+                            final darkTheme = _applyDynamic(
+                              darkBase,
+                              dynamicEnabled ? darkDynamic : null,
+                              visualStyle,
+                              isTv,
+                            );
+                            final routes = AppRouter.routes;
+                            Route<dynamic> onGenerateRoute(
+                              RouteSettings settings,
+                            ) {
+                              final name = settings.name ?? AppRoutes.home;
+                              final target =
+                                  routes[name] ?? routes[AppRoutes.home]!;
+                              return buildAppPageRoute<dynamic>(
+                                target,
+                                settings: settings,
                               );
                             }
-                            return content;
-                          },
-                          ),
-                        );
+
+                            return _TvOrientationSync(
+                              tv: isTv,
+                              child: MaterialApp(
+                                title: '飞牛音乐',
+                                navigatorKey: appNavigatorKey,
+                                theme: lightTheme,
+                                darkTheme: darkTheme,
+                                themeMode: mode,
+                                scrollBehavior: const AppScrollBehavior(),
+                                home: _AppStartupGate(
+                                  tv: isTv,
+                                  onGenerateRoute: onGenerateRoute,
+                                ),
+                                onGenerateRoute: onGenerateRoute,
+                                builder: (context, child) {
+                                  final theme = Theme.of(context);
+                                  final isDark =
+                                      theme.brightness == Brightness.dark;
+                                  final navColor = theme.colorScheme.surface;
+                                  // 鸿蒙：小白条（手势指示条）区域可透传触摸，
+                                  // 底部无需避让，内容直接画到屏幕底，小白条悬浮其上。
+                                  final isOhos =
+                                      !kIsWeb &&
+                                      defaultTargetPlatform ==
+                                          TargetPlatform.ohos;
+                                  final overlay = SystemUiOverlayStyle(
+                                    statusBarColor: Colors.transparent,
+                                    statusBarIconBrightness: isDark
+                                        ? Brightness.light
+                                        : Brightness.dark,
+                                    statusBarBrightness: isDark
+                                        ? Brightness.dark
+                                        : Brightness.light,
+                                    systemNavigationBarColor: isOhos
+                                        ? Colors.transparent
+                                        : navColor,
+                                    systemNavigationBarIconBrightness: isDark
+                                        ? Brightness.light
+                                        : Brightness.dark,
+                                    systemNavigationBarDividerColor: isOhos
+                                        ? Colors.transparent
+                                        : navColor,
+                                  );
+                                  Widget content =
+                                      AnnotatedRegion<SystemUiOverlayStyle>(
+                                        value: overlay,
+                                        child: child ?? const SizedBox.shrink(),
+                                      );
+                                  if (isOhos) {
+                                    final mq = MediaQuery.of(context);
+                                    if (mq.padding.bottom != 0) {
+                                      content = MediaQuery(
+                                        data: mq.copyWith(
+                                          padding: mq.padding.copyWith(
+                                            bottom: 0,
+                                          ),
+                                        ),
+                                        child: content,
+                                      );
+                                    }
+                                  }
+                                  // TV 模式：根焦点域（方向键遍历 + 快捷键）。
+                                  // 手机端 isTv=false，完全绕开，行为不变。
+                                  if (isTv) {
+                                    content = TvFocusScope(child: content);
+                                  }
+                                  if (visualStyle == AppVisualStyle.miuix) {
+                                    final shadMode = switch (mode) {
+                                      ThemeMode.light => shad.ThemeMode.light,
+                                      ThemeMode.dark => shad.ThemeMode.dark,
+                                      ThemeMode.system => shad.ThemeMode.system,
+                                    };
+                                    content = shad.ShadcnLayer(
+                                      theme: buildMiuixShadTheme(
+                                        lightTheme.colorScheme,
+                                      ),
+                                      darkTheme: buildMiuixShadTheme(
+                                        darkTheme.colorScheme,
+                                      ),
+                                      themeMode: shadMode,
+                                      scaling: const shad.AdaptiveScaling(),
+                                      child: content,
+                                    );
+                                  }
+                                  return content;
+                                },
+                              ),
+                            );
                           },
                         );
                       },
@@ -460,11 +491,7 @@ class _AppStartupGateState extends State<_AppStartupGate> {
       final current = await AppUpdateService.instance.currentVersion();
       final info = await AppUpdateService.instance.checkLatest(current);
       if (!mounted || !info.hasUpdate) return;
-      await showAppUpdateDialog(
-        context,
-        info: info,
-        currentVersion: current,
-      );
+      await showAppUpdateDialog(context, info: info, currentVersion: current);
     } catch (_) {
       // 静默失败：自动检查失败不打扰用户，手动检查仍可用
     }
