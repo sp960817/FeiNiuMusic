@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_lyric/core/lyric_model.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:signals_flutter/signals_flutter.dart' hide computed;
 
 import '../../app/router/app_router.dart';
+import '../../app/services/feiniu/api_client.dart';
 import '../../app/services/feiniu/favorite_service.dart';
 import '../../app/services/lyrics/lyrics_service.dart';
 import '../../app/services/player_service.dart';
@@ -639,9 +641,10 @@ class _PosterArtwork extends StatelessWidget {
             children: [
               // 模糊底：仅覆盖顶部渐变区（与清晰封面顶部透明区同高对齐），
               // 不让封面底部渐隐时透出模糊带。
-              // 注意：封面必须按磨砂带 cover 裁切填满（不能像清晰封面那样
-              // 用方形溢出布局）——否则 ImageFiltered 的图层会携带整幅方形
-              // 封面溢出到海报底部，在英雄区底缘渲染出一条全亮度的封面横线。
+              // 注意：封面必须按区域尺寸渲染（不能是方形溢出布局）——OHOS
+              // 引擎的 ImageFiltered/ShaderMask 图层按最深层绘制的实际边界
+              // 创建、无视外层裁剪；方形封面会溢出到海报底部，图层被英雄区
+              // 裁切后，在底缘留下一行未应用效果的原始封面横线。
               Positioned(
                 top: 0,
                 left: 0,
@@ -650,27 +653,7 @@ class _PosterArtwork extends StatelessWidget {
                 child: ClipRect(
                   child: ImageFiltered(
                     imageFilter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final side =
-                            (constraints.maxWidth > constraints.maxHeight
-                                    ? constraints.maxWidth
-                                    : constraints.maxHeight)
-                                .clamp(1.0, 2000.0);
-                        return ClipRect(
-                          child: SizedBox.expand(
-                            child: FittedBox(
-                              fit: BoxFit.cover,
-                              child: SizedBox(
-                                width: side,
-                                height: side,
-                                child: _buildSquareCover(context, side),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                    child: _buildAreaCover(context, songSignal.value),
                   ),
                 ),
               ),
@@ -717,53 +700,49 @@ class _PosterArtwork extends StatelessWidget {
     );
   }
 
-  /// 封面主图（海报模式整幅方形铺满、不旋转）。
+  /// 清晰封面：铺满英雄区（图片 cover 裁切，无方形溢出）。
   Widget _buildCover(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // 防御：尺寸钳制为正的有限值，避免横竖屏切换/首帧瞬态时
-        // boxSize 为 0 或 NaN，连锁导致 ShaderMask/RotationTransition
-        // 产生 Matrix4 非有限值 / RRect NaN 崩溃。
-        final maxW = constraints.maxWidth.isFinite ? constraints.maxWidth : 0.0;
-        final maxH = constraints.maxHeight.isFinite
-            ? constraints.maxHeight
-            : 0.0;
-        final boxSize = (maxW > maxH ? maxW : maxH).clamp(1.0, 2000.0);
-        return ClipRect(
-          child: OverflowBox(
-            maxWidth: boxSize,
-            maxHeight: boxSize,
-            child: _buildSquareCover(context, boxSize),
-          ),
-        );
-      },
+    return ClipRect(
+      child: SizedBox.expand(child: _buildAreaCover(context, songSignal.value)),
     );
   }
 
-  /// 方形封面（真实封面 / 占位骨架）。size 为方形边长。
-  Widget _buildSquareCover(BuildContext context, double size) {
-    final song = songSignal.value;
-    return song == null
-        ? Skeletonizer(
-            enabled: true,
-            child: _ArtworkPlaceholder(border: BorderRadius.zero, label: ''),
-          )
-        : ArtworkWidget(
-            song: song,
-            size: size,
-            // 海报模式为大封面全屏布局：无论「圆形封面」开关如何
-            // 均整幅方形铺满、不旋转（旋转仅对圆形封面有意义）。
-            borderRadius: 0,
-            preferOriginal: true,
-            keepPreviousUntilLoaded: true,
-            placeholder: Skeletonizer(
-              enabled: true,
-              child: _ArtworkPlaceholder(
-                border: BorderRadius.zero,
-                label: song.title,
-              ),
-            ),
-          );
+  /// 按区域尺寸渲染封面（真实封面 / 占位骨架），磨砂带与清晰封面共用。
+  ///
+  /// 直接以图片 cover 裁切填满所在区域，最深层绘制边界=区域本身；
+  /// 不要在这里用方形+溢出的布局方式，否则 ImageFiltered/ShaderMask
+  /// 图层会按整幅方形封面创建并越界，被外层裁切后留下底缘横线。
+  Widget _buildAreaCover(BuildContext context, SongEntity? song) {
+    if (song == null || song.coverId == null || song.coverId!.isEmpty) {
+      return Skeletonizer(
+        enabled: song == null,
+        child: _ArtworkPlaceholder(border: BorderRadius.zero, label: ''),
+      );
+    }
+    final coverUrl = FeiNiuApiClient.instance.coverUrl(
+      song.coverId!,
+      size: 800,
+      updatedAt: song.updatedAt,
+    );
+    return CachedNetworkImage(
+      imageUrl: coverUrl,
+      httpHeaders: FeiNiuApiClient.imageAuthHeaders(),
+      fit: BoxFit.cover,
+      placeholder: (context, url) => Skeletonizer(
+        enabled: true,
+        child: _ArtworkPlaceholder(
+          border: BorderRadius.zero,
+          label: song.title,
+        ),
+      ),
+      errorWidget: (context, url, error) => Skeletonizer(
+        enabled: true,
+        child: _ArtworkPlaceholder(
+          border: BorderRadius.zero,
+          label: song.title,
+        ),
+      ),
+    );
   }
 }
 
