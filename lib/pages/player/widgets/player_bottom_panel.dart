@@ -542,12 +542,7 @@ class BottomActions extends StatelessWidget {
   }
 
   void _showSleepTimerSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => _SleepTimerSheet(player: player),
-    );
+    showPlayerSleepTimerSheet(context, player);
   }
 
   void _showPlaylistSheet(BuildContext context) {
@@ -568,6 +563,7 @@ class BottomActions extends StatelessWidget {
         song: song,
         // 播放器右下角「⋯」打开：显示音量/倍速/解码器等播放控制
         showPlayerControls: true,
+        onOpenSleepTimer: () => showPlayerSleepTimerSheet(context, player),
         onOpenPlayerAppearanceSettings: () {
           Navigator.of(context).pushNamed(AppRoutes.playerAppearanceSettings);
         },
@@ -1497,6 +1493,16 @@ class PosterControls extends StatelessWidget {
   }
 }
 
+/// 弹出定时播放设置面板（默认播放器底栏按钮、默认/海报「更多」面板共用）。
+void showPlayerSleepTimerSheet(BuildContext context, PlayerService player) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => _SleepTimerSheet(player: player),
+  );
+}
+
 /// 海报模式底部「更多」按钮：弹出歌曲详情面板
 void showPosterSongDetailSheet(BuildContext context, PlayerService player) {
   final song = player.currentSong.value;
@@ -1512,6 +1518,7 @@ void showPosterSongDetailSheet(BuildContext context, PlayerService player) {
       song: song,
       // 海报模式底部「更多」：显示播放控制
       showPlayerControls: true,
+      onOpenSleepTimer: () => showPlayerSleepTimerSheet(context, player),
       onOpenPlayerAppearanceSettings: () {
         Navigator.of(context).pushNamed(AppRoutes.playerAppearanceSettings);
       },
