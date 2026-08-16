@@ -623,6 +623,10 @@ class PlayerService with WidgetsBindingObserver {
       final bounds = _runBounds(logicalIndex);
       final sameRun = cur >= bounds.start && cur <= bounds.end;
       if (sameRun) {
+        // 等待在途的队列激活完成再 seek：just_audio 在 loading 态会静默
+        // 吞掉 seek/seekToNext（seek 直接 return），暂停时连点下一首会
+        // 丢失中间的切歌。
+        await _loadQueueLock;
         await _activeEngine.seekToNext();
         if (wasPlaying && !_activeEngine.playing) {
           try {
@@ -2967,6 +2971,10 @@ class PlayerService with WidgetsBindingObserver {
     if (!active) {
       throw Exception('Failed to activate audio session');
     }
+    // 等待在途的队列激活（切歌加载）完成再播放：加载中引擎仍挂着旧源，
+    // 此时 play() 会把旧源重新播出来——「暂停时连点下一首再点播放，
+    // 回到之前暂停的那首歌继续播」即此竞态。
+    await _loadQueueLock;
     final engine = _activeEngine;
     // 状态确认在 play() 之前订阅：just_audio 在 play() 开头就乐观广播
     // playing=true，先订阅才不会漏掉该事件。
