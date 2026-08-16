@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../feiniu/transcode_service.dart';
 import '../../state/song_state.dart';
 import 'player_engine.dart';
+import '../../utils/platform_capabilities.dart';
 
 /// 播放引擎路由：决定每首歌由哪个引擎解码。
 ///
@@ -30,6 +31,10 @@ EngineKind routeForFormat(String? format, {String? codec}) {
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
     return EngineKind.mediaKit;
   }
+  // CPF Flutter 的 HarmonyOS 端目前没有 media_kit/libmpv 实现。所有本地
+  // 播放交给 just_audio_ohos；不受系统解码支持的格式由 PlayerService
+  // 自动请求服务端转 MP3。
+  if (isHarmonyOS) return EngineKind.justAudio;
   // codec 判断优先：eac3/ac3/alac 等 ExoPlayer 设备解码不可靠的编码直接
   // 走 media_kit（FFmpeg），即使容器是 m4a（format 不在黑名单）。
   if (FeiNiuTranscodeService.isMediaKitCodec(codec)) {

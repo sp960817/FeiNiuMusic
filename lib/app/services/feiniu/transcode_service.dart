@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../state/settings_transcode_state.dart';
 import '../../state/song_state.dart';
+import '../../utils/platform_capabilities.dart';
 import 'api_client.dart';
 
 /// 服务器转码服务（单例）。
@@ -28,10 +29,19 @@ class FeiNiuTranscodeService {
 
   /// 需服务器转码（本地 ExoPlayer 不支持）的格式黑名单。
   static const Set<String> unsupportedFormats = {
-    'dsf', 'dff', 'dsd',
-    'wma', 'ape', 'dts',
-    'aiff', 'ra', 'au',
-    'dvf', 'tta', 'dss', 'mmf',
+    'dsf',
+    'dff',
+    'dsd',
+    'wma',
+    'ape',
+    'dts',
+    'aiff',
+    'ra',
+    'au',
+    'dvf',
+    'tta',
+    'dss',
+    'mmf',
   };
 
   /// 交给 media_kit（FFmpeg）解码的格式：黑名单格式（DSF/APE/WMA…）。
@@ -53,7 +63,12 @@ class FeiNiuTranscodeService {
   /// `eac3`/`ac3`：杜比数字（Plus）；`alac`：Apple 无损；`dts`/`truehd`/`mlp`：
   /// 家庭影院环绕编码。
   static const Set<String> mediaKitCodecs = {
-    'eac3', 'ac3', 'alac', 'dts', 'truehd', 'mlp',
+    'eac3',
+    'ac3',
+    'alac',
+    'dts',
+    'truehd',
+    'mlp',
   };
 
   /// codec 是否为 media_kit 专属（ExoPlayer 设备解码不可靠）。
@@ -65,7 +80,15 @@ class FeiNiuTranscodeService {
   /// 可能内嵌风险 codec（EAC3/ALAC…）的容器格式。codec 未知（null）时，
   /// 这些容器需要无声看门狗兜底。
   static const Set<String> riskySilenceContainers = {
-    'm4a', 'm4b', 'm4p', 'mp4', 'aac', 'mov', '3gp', 'mka', 'mkv',
+    'm4a',
+    'm4b',
+    'm4p',
+    'mp4',
+    'aac',
+    'mov',
+    '3gp',
+    'mka',
+    'mkv',
   };
 
   /// 容器是否可能内嵌风险 codec（codec 未知时据此判断是否需要看门狗）。
@@ -193,6 +216,15 @@ class FeiNiuTranscodeService {
     final size = await resolvedSizeFor(song);
     if (size == null || size <= 0) return false;
     return size > AppTranscodeSettings.thresholdMb.value * 1024 * 1024;
+  }
+
+  /// HarmonyOS 没有 media_kit 原生后端时，需要把原本交给 FFmpeg 的格式或
+  /// codec 转成系统播放器稳定支持的 MP3 HLS。
+  Future<bool> requiresHarmonyCompatibilityTranscode(SongEntity song) async {
+    if (!isHarmonyOS) return false;
+    final format = await resolvedFormatFor(song);
+    final codec = await resolvedCodecFor(song);
+    return isMediaKitFormat(format ?? '') || isMediaKitCodec(codec);
   }
 
   /// 当前生效的转码 codec：降级到 mp3 的歌恒为 `mp3`，否则取设置格式。

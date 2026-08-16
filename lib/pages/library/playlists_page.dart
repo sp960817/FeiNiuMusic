@@ -1738,8 +1738,10 @@ class _SlideRevealActionState extends State<_SlideRevealAction>
                             SizedBox(height: 2),
                             Text(
                               '删除',
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 12),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                         ),
@@ -2279,7 +2281,6 @@ class _PlaylistNameDialogState extends State<_PlaylistNameDialog> {
           hideBottomControls: true,
           lockAspectRatio: true,
           toolbarColor: const Color(0xFF212121),
-          statusBarLight: false,
           toolbarWidgetColor: Colors.white,
           activeControlsWidgetColor: Colors.white,
           backgroundColor: Colors.black,

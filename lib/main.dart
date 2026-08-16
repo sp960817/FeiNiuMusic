@@ -26,6 +26,7 @@ import 'app/state/settings_island_lyric.dart';
 import 'app/state/settings_lyric_companion.dart';
 import 'app/state/settings_match.dart';
 import 'app/state/settings_state.dart';
+import 'app/utils/platform_capabilities.dart';
 
 Future<void> main() async {
   // 在一切之前安装进程级 SSL 拦截钩子
@@ -40,12 +41,14 @@ Future<void> main() async {
   // 必须在任何 SharedPreferences / path_provider 读取之前替换全局实例，
   // 否则 prefs/数据库/缓存会落回系统 %APPDATA%。
   AppPortableStorage.overridePathProviderForPortable();
-  // 初始化 media_kit（加载 libmpv 原生库）。必须在任何 Player() 构造前调用；
-  // 放在认证恢复之前，不依赖网络/账号状态。
-  try {
-    MediaKit.ensureInitialized();
-  } catch (e) {
-    debugPrint('MediaKit.ensureInitialized failed: $e');
+  // HarmonyOS 由 just_audio_ohos 驱动，CPF 生态暂没有 media_kit/libmpv
+  // 原生实现；其他平台继续在任何 Player() 构造前加载 libmpv。
+  if (!isHarmonyOS) {
+    try {
+      MediaKit.ensureInitialized();
+    } catch (e) {
+      debugPrint('MediaKit.ensureInitialized failed: $e');
+    }
   }
   await DebugLogService.instance.ensureLoaded();
   // TV 检测必须在 runApp 前完成，避免首帧后再切换布局造成闪变。
@@ -90,9 +93,9 @@ Future<void> main() async {
   // 避免把本机凭据带到别的机器。须在 AuthService.init（恢复会话）之前执行。
   await AppPortableStorage.checkMachineOwner();
   await AuthService.instance.init();
-  // 媒体通知（MediaSession/通知栏/Android Auto）仅 Android 有原生实现。
-  // 桌面端跳过：PlayerService 由首个用到它的页面懒构造，无需在此初始化。
-  if (Platform.isAndroid) {
+  // Android 走 MediaSession，HarmonyOS 走 audio_service_ohos 的 AVSession；
+  // 桌面端仍由首个播放页面懒构造 PlayerService。
+  if (supportsSystemMediaSession) {
     await MediaNotificationService.init();
   }
   // 切歌通知监听：PlayerService 已构造（MediaNotificationService.init 内），

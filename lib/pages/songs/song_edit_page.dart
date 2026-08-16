@@ -143,9 +143,13 @@ class _SongEditPageState extends State<SongEditPage> {
       final data = await _api.trackMetadata(widget.song.id);
       if (!mounted) return;
       if (data != null) {
-        final track = FeiNiuTrack.fromJson(data['track'] as Map<String, dynamic>? ?? {});
+        final track = FeiNiuTrack.fromJson(
+          data['track'] as Map<String, dynamic>? ?? {},
+        );
         final audioSpec = data['audioSpec'] != null
-            ? FeiNiuAudioSpec.fromJson(data['audioSpec'] as Map<String, dynamic>)
+            ? FeiNiuAudioSpec.fromJson(
+                data['audioSpec'] as Map<String, dynamic>,
+              )
             : null;
         _track = track;
         _audioSpec = audioSpec;
@@ -157,8 +161,10 @@ class _SongEditPageState extends State<SongEditPage> {
         if (albumName.isNotEmpty && albumName != '未知专辑') {
           _albumController.text = albumName;
         }
-        if (track.trackNo != null) _trackNoController.text = track.trackNo.toString();
-        if (track.discNo != null) _discNoController.text = track.discNo.toString();
+        if (track.trackNo != null)
+          _trackNoController.text = track.trackNo.toString();
+        if (track.discNo != null)
+          _discNoController.text = track.discNo.toString();
       }
     } catch (e) {
       debugPrint('[SongEditPage] load metadata error: $e');
@@ -221,7 +227,6 @@ class _SongEditPageState extends State<SongEditPage> {
           hideBottomControls: true,
           lockAspectRatio: true,
           toolbarColor: const Color(0xFF212121),
-          statusBarLight: false,
           toolbarWidgetColor: Colors.white,
           activeControlsWidgetColor: Colors.white,
           backgroundColor: Colors.black,
@@ -301,10 +306,7 @@ class _SongEditPageState extends State<SongEditPage> {
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
-        builder: (_) => CoverSearchSheet(
-          candidates: covers,
-          keyword: keyword,
-        ),
+        builder: (_) => CoverSearchSheet(candidates: covers, keyword: keyword),
       );
       if (selected == null || !mounted) return;
 
@@ -359,7 +361,9 @@ class _SongEditPageState extends State<SongEditPage> {
         // 转码失败用原字节（PNG/JPEG 也能直接用）
       }
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/cover_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final file = File(
+        '${dir.path}/cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
       await file.writeAsBytes(out);
       return file.path;
     } catch (e) {
@@ -427,8 +431,8 @@ class _SongEditPageState extends State<SongEditPage> {
         builder: (_) => _MatchCandidateSheet(
           grouped: grouped,
           keyword: keyword,
-          onSearch: (kw, page) async =>
-              (await SongMatchService.instance.searchCandidates(kw, page: page)),
+          onSearch: (kw, page) async => (await SongMatchService.instance
+              .searchCandidates(kw, page: page)),
         ),
       );
       if (selected == null || !mounted) return;
@@ -440,10 +444,14 @@ class _SongEditPageState extends State<SongEditPage> {
       String? prefetchedLyrics;
       bool companionConnected = false;
       if (LyricCompanionSettings.enabled.value) {
-        companionConnected =
-            await LyricCompanionService.instance.checkConnected();
-        final kwTitle = selected.title.isNotEmpty ? selected.title : _titleController.text.trim();
-        final kwArtist = selected.artist.isNotEmpty ? selected.artist : _artists.map((a) => a.name).join(' ');
+        companionConnected = await LyricCompanionService.instance
+            .checkConnected();
+        final kwTitle = selected.title.isNotEmpty
+            ? selected.title
+            : _titleController.text.trim();
+        final kwArtist = selected.artist.isNotEmpty
+            ? selected.artist
+            : _artists.map((a) => a.name).join(' ');
         prefetchedLyrics = await SongMatchService.instance.fetchLyrics(
           title: kwTitle,
           artist: kwArtist,
@@ -467,7 +475,8 @@ class _SongEditPageState extends State<SongEditPage> {
           currentArtist: _artists.map((a) => a.name).join(' / '),
           currentAlbum: _albumController.text.trim(),
           currentYear: _yearController.text.trim(),
-          currentCoverUrl: _displayCoverId != null && _displayCoverId!.isNotEmpty
+          currentCoverUrl:
+              _displayCoverId != null && _displayCoverId!.isNotEmpty
               ? _api.coverUrl(_displayCoverId!, size: 120)
               : null,
           currentLyrics: _lyricsController.text,
@@ -479,8 +488,10 @@ class _SongEditPageState extends State<SongEditPage> {
       );
       if (fields == null || !mounted) return;
 
-      final patch = await SongMatchService.instance
-          .buildPatch(selected, downloadCover: fields.contains(MatchField.cover));
+      final patch = await SongMatchService.instance.buildPatch(
+        selected,
+        downloadCover: fields.contains(MatchField.cover),
+      );
       if (!mounted) return;
 
       // 回填表单（仅勾选字段）
@@ -506,8 +517,9 @@ class _SongEditPageState extends State<SongEditPage> {
 
       // 解析歌手 → FeiNiuArtist（仅勾选歌手字段且匹配到才应用）
       if (fields.contains(MatchField.artist) && patch.artist.isNotEmpty) {
-        final resolved =
-            await SongMatchService.instance.resolveArtists(patch.artist);
+        final resolved = await SongMatchService.instance.resolveArtists(
+          patch.artist,
+        );
         if (mounted && resolved.isNotEmpty) {
           setState(() => _artists = resolved);
         }
@@ -590,8 +602,9 @@ class _SongEditPageState extends State<SongEditPage> {
       String? albumGuid;
       final albumText = _albumController.text.trim();
       if (albumText.isNotEmpty) {
-        albumGuid =
-            (await SongMatchService.instance.resolveAlbum(albumText))?.guid;
+        albumGuid = (await SongMatchService.instance.resolveAlbum(
+          albumText,
+        ))?.guid;
       }
 
       final body = <String, dynamic>{
@@ -604,8 +617,7 @@ class _SongEditPageState extends State<SongEditPage> {
         'year': int.tryParse(_yearController.text.trim()),
         'trackNo': int.tryParse(_trackNoController.text.trim()),
         'discNo': int.tryParse(_discNoController.text.trim()),
-        if (coverId != null && coverId.isNotEmpty)
-          'coverId': coverId,
+        if (coverId != null && coverId.isNotEmpty) 'coverId': coverId,
         if (coverId != null && coverId.isNotEmpty)
           'coverGUID': FeiNiuApiClient.deriveCoverGuid(coverId),
       };
@@ -620,12 +632,14 @@ class _SongEditPageState extends State<SongEditPage> {
       // 构造更新后的 SongEntity 返回
       final artistJson = jsonEncode(
         _artists
-            .map((a) => {
-                  'guid': a.guid,
-                  'name': a.name,
-                  if (a.coverId != null && a.coverId!.isNotEmpty)
-                    'coverId': a.coverId,
-                })
+            .map(
+              (a) => {
+                'guid': a.guid,
+                'name': a.name,
+                if (a.coverId != null && a.coverId!.isNotEmpty)
+                  'coverId': a.coverId,
+              },
+            )
             .toList(),
       );
       final originalAlbumGuid = widget.song.albumGuid;
@@ -714,7 +728,9 @@ class _SongEditPageState extends State<SongEditPage> {
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.check_rounded),
                           label: Text(_saving ? '保存中…' : '保存'),
@@ -776,9 +792,7 @@ class _SongEditPageState extends State<SongEditPage> {
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Center(
-        child: _buildCover(theme),
-      ),
+      child: Center(child: _buildCover(theme)),
     );
   }
 
@@ -1010,9 +1024,9 @@ class _SongEditPageState extends State<SongEditPage> {
         children: [
           Text(
             '编辑信息',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 12),
           // 「匹配歌曲信息」依赖数据源插件（原生 QuickJS），非 Android 隐藏。
@@ -1059,8 +1073,9 @@ class _SongEditPageState extends State<SongEditPage> {
             icon: Icons.category_outlined,
             chips: _genres.map((g) => g.name).toList(),
             onAdd: _showGenrePicker,
-            onRemove:
-                _genres.isEmpty ? null : () => setState(() => _genres = []),
+            onRemove: _genres.isEmpty
+                ? null
+                : () => setState(() => _genres = []),
           ),
           const SizedBox(height: 14),
           _buildTextField(
@@ -1201,8 +1216,9 @@ class _SongEditPageState extends State<SongEditPage> {
     if (_lyricsLoading) return;
     setState(() => _lyricsLoading = true);
     try {
-      final content =
-          await LyricCompanionService.instance.getLyrics(widget.song.id);
+      final content = await LyricCompanionService.instance.getLyrics(
+        widget.song.id,
+      );
       if (!mounted) return;
       setState(() {
         _lyricsController.text = content;
@@ -1228,8 +1244,10 @@ class _SongEditPageState extends State<SongEditPage> {
     if (_lyricsSaving || _lyricsLoading || !_lyricsDirty) return;
     setState(() => _lyricsSaving = true);
     try {
-      await LyricCompanionService.instance
-          .saveLyrics(widget.song.id, _lyricsController.text);
+      await LyricCompanionService.instance.saveLyrics(
+        widget.song.id,
+        _lyricsController.text,
+      );
       if (!mounted) return;
       _lyricsDirty = false;
     } catch (e) {
@@ -1277,7 +1295,11 @@ class _SongEditPageState extends State<SongEditPage> {
       children: [
         Row(
           children: [
-            Icon(Icons.person_outline, size: 20, color: theme.colorScheme.primary),
+            Icon(
+              Icons.person_outline,
+              size: 20,
+              color: theme.colorScheme.primary,
+            ),
             const SizedBox(width: 8),
             Text(
               '歌手',
@@ -1295,8 +1317,7 @@ class _SongEditPageState extends State<SongEditPage> {
           runSpacing: 14,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            for (final artist in _artists)
-              _buildArtistItem(theme, artist),
+            for (final artist in _artists) _buildArtistItem(theme, artist),
             InkWell(
               onTap: _showArtistPicker,
               borderRadius: BorderRadius.circular(12),
@@ -1369,8 +1390,9 @@ class _SongEditPageState extends State<SongEditPage> {
                 color: theme.colorScheme.surfaceContainerHighest,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: theme.colorScheme.onSurfaceVariant
-                      .withValues(alpha: 0.4),
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.4,
+                  ),
                 ),
               ),
               child: Icon(
@@ -1574,9 +1596,7 @@ class _ArtistPickerSheetState extends State<_ArtistPickerSheet> {
     final filtered = _query.isEmpty
         ? _all
         : _all
-              .where(
-                (a) => a.name.toLowerCase().contains(_query.toLowerCase()),
-              )
+              .where((a) => a.name.toLowerCase().contains(_query.toLowerCase()))
               .toList();
 
     return Container(
@@ -1786,9 +1806,7 @@ class _GenrePickerSheetState extends State<_GenrePickerSheet> {
     final filtered = _query.isEmpty
         ? _all
         : _all
-              .where(
-                (g) => g.name.toLowerCase().contains(_query.toLowerCase()),
-              )
+              .where((g) => g.name.toLowerCase().contains(_query.toLowerCase()))
               .toList();
 
     return Container(
@@ -2009,11 +2027,13 @@ class _MatchCandidateSheetState extends State<_MatchCandidateSheet> {
                 .where((g) => g.pluginId == group.pluginId)
                 .expand((g) => g.results)
                 .toList();
-            merged.add(SourceGroup(
-              pluginId: group.pluginId,
-              pluginName: group.pluginName,
-              results: [...group.results, ...added],
-            ));
+            merged.add(
+              SourceGroup(
+                pluginId: group.pluginId,
+                pluginName: group.pluginName,
+                results: [...group.results, ...added],
+              ),
+            );
           }
           _grouped = GroupedSongResults(groups: merged);
           _page += 1;
@@ -2114,10 +2134,12 @@ class _MatchCandidateSheetState extends State<_MatchCandidateSheet> {
     for (var i = 0; i < _grouped.groups.length; i++) {
       final group = _grouped.groups[i];
       if (group.results.isEmpty) continue;
-      tabs.add(Padding(
-        padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-        child: _sourceChip(theme, i + 1, group.pluginName),
-      ));
+      tabs.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+          child: _sourceChip(theme, i + 1, group.pluginName),
+        ),
+      );
     }
     return SizedBox(
       height: 40,
@@ -2152,33 +2174,32 @@ class _MatchCandidateSheetState extends State<_MatchCandidateSheet> {
   }
 
   /// 渲染当前激活 tab 的候选列表。
-  Widget _buildActiveList(
-    ScrollController scrollController,
-    ThemeData theme,
-  ) {
+  Widget _buildActiveList(ScrollController scrollController, ThemeData theme) {
     final rows = <Widget>[];
     for (final candidate in _activeList()) {
       rows.add(_candidateTile(candidate));
     }
     if (_hasMore) {
-      rows.add(Padding(
-        key: const ValueKey('load-more'),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Center(
-          child: _loadingMore
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(
-                  '上拉加载更多',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+      rows.add(
+        Padding(
+          key: const ValueKey('load-more'),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Center(
+            child: _loadingMore
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    '上拉加载更多',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
+          ),
         ),
-      ));
+      );
     }
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
@@ -2295,12 +2316,15 @@ class _CoverSearchSheetState extends State<CoverSearchSheet> {
                     final candidate = widget.candidates[index];
                     final url = candidate.picUrl;
                     return InkWell(
-                      onTap: url.isEmpty ? null : () => Navigator.of(context).pop(candidate),
+                      onTap: url.isEmpty
+                          ? null
+                          : () => Navigator.of(context).pop(candidate),
                       borderRadius: BorderRadius.circular(12),
                       child: url.isEmpty
                           ? Container(
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceContainerHighest,
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Center(
@@ -2311,22 +2335,26 @@ class _CoverSearchSheetState extends State<CoverSearchSheet> {
                               imageUrl: url,
                               fit: BoxFit.cover,
                               placeholder: (_, _) => Container(
-                                color: theme.colorScheme.surfaceContainerHighest,
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
                               ),
                               errorWidget: (_, _, _) => Container(
-                                color: theme.colorScheme.surfaceContainerHighest,
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
                                 child: const Center(
-                                  child: Icon(Icons.image_not_supported_outlined),
+                                  child: Icon(
+                                    Icons.image_not_supported_outlined,
+                                  ),
                                 ),
                               ),
-                        ),
-                );
-              },
-            ),
+                            ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        );
       },
     );
   }
@@ -2429,126 +2457,131 @@ class _MatchApplySheetState extends State<_MatchApplySheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: Text(
-              '「${c.title}」· ${c.artist}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const Divider(height: 1),
-          // 全选 / 取消全选（仅对候选有数据的字段生效）——按钮放右边
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '全选',
-                    style: theme.textTheme.bodyMedium,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  '「${c.title}」· ${c.artist}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
-                  Checkbox(
-                    value: _allEnabledSelected,
-                    tristate: true,
-                    onChanged: (v) => _toggleAll(v ?? false),
-                  ),
-                ],
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-          ),
-          Flexible(
-            child: ListView(
-              controller: scrollController,
-              shrinkWrap: true,
-              children: [
-                // 封面放最上面：显示候选封面图片 + 勾选
-                _coverTile(context),
-                _fieldTile(
-                  context,
-                  MatchField.title,
-                  '标题',
-                  widget.currentTitle,
-                  c.title,
-                  enabled: c.title.isNotEmpty,
-                ),
-                _fieldTile(
-                  context,
-                  MatchField.artist,
-                  '歌手',
-                  widget.currentArtist,
-                  c.artist,
-                  enabled: c.artist.isNotEmpty,
-                ),
-                _fieldTile(
-                  context,
-                  MatchField.album,
-                  '专辑',
-                  widget.currentAlbum,
-                  c.album,
-                  enabled: c.album.isNotEmpty,
-                ),
-                _fieldTile(
-                  context,
-                  MatchField.year,
-                  '年份',
-                  widget.currentYear,
-                  c.date,
-                  enabled: c.date.isNotEmpty,
-                ),
-                _fieldTile(
-                  context,
-                  MatchField.trackNumber,
-                  '歌曲序号',
-                  widget.currentTrackNo.isEmpty ? '无' : widget.currentTrackNo,
-                  c.trackNumber.isEmpty ? '无序号' : '第 ${c.trackNumber} 首',
-                  enabled: c.trackNumber.isNotEmpty,
-                ),
-                _fieldTile(
-                  context,
-                  MatchField.discNumber,
-                  '光盘序号',
-                  widget.currentDiscNo.isEmpty ? '无' : widget.currentDiscNo,
-                  c.discNumber.isEmpty ? '无碟号' : '碟号 ${c.discNumber}',
-                  enabled: c.discNumber.isNotEmpty,
-                ),
-                if (LyricCompanionSettings.enabled.value)
-                  _fieldTile(
-                    context,
-                    MatchField.lyrics,
-                    '歌词',
-                    widget.currentLyrics.isEmpty ? '无' : '有（${widget.currentLyrics.length} 字符）',
-                    widget.prefetchedLyrics == null || widget.prefetchedLyrics!.isEmpty
-                        ? '未获取到歌词'
-                        : '已匹配（${widget.prefetchedLyrics!.length} 字符）',
-                    enabled: widget.prefetchedLyrics != null &&
-                        widget.prefetchedLyrics!.isNotEmpty,
-                    note: widget.companionConnected ? null : '未连接到增强插件（写入 NAS 不可用）',
+              const Divider(height: 1),
+              // 全选 / 取消全选（仅对候选有数据的字段生效）——按钮放右边
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('全选', style: theme.textTheme.bodyMedium),
+                      Checkbox(
+                        value: _allEnabledSelected,
+                        tristate: true,
+                        onChanged: (v) => _toggleAll(v ?? false),
+                      ),
+                    ],
                   ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: FilledButton(
-                onPressed: _selected.isEmpty
-                    ? null
-                    : () => Navigator.of(context).pop(_selected),
-                child: Text('应用所选 (${_selected.length})'),
+                ),
               ),
-            ),
+              Flexible(
+                child: ListView(
+                  controller: scrollController,
+                  shrinkWrap: true,
+                  children: [
+                    // 封面放最上面：显示候选封面图片 + 勾选
+                    _coverTile(context),
+                    _fieldTile(
+                      context,
+                      MatchField.title,
+                      '标题',
+                      widget.currentTitle,
+                      c.title,
+                      enabled: c.title.isNotEmpty,
+                    ),
+                    _fieldTile(
+                      context,
+                      MatchField.artist,
+                      '歌手',
+                      widget.currentArtist,
+                      c.artist,
+                      enabled: c.artist.isNotEmpty,
+                    ),
+                    _fieldTile(
+                      context,
+                      MatchField.album,
+                      '专辑',
+                      widget.currentAlbum,
+                      c.album,
+                      enabled: c.album.isNotEmpty,
+                    ),
+                    _fieldTile(
+                      context,
+                      MatchField.year,
+                      '年份',
+                      widget.currentYear,
+                      c.date,
+                      enabled: c.date.isNotEmpty,
+                    ),
+                    _fieldTile(
+                      context,
+                      MatchField.trackNumber,
+                      '歌曲序号',
+                      widget.currentTrackNo.isEmpty
+                          ? '无'
+                          : widget.currentTrackNo,
+                      c.trackNumber.isEmpty ? '无序号' : '第 ${c.trackNumber} 首',
+                      enabled: c.trackNumber.isNotEmpty,
+                    ),
+                    _fieldTile(
+                      context,
+                      MatchField.discNumber,
+                      '光盘序号',
+                      widget.currentDiscNo.isEmpty ? '无' : widget.currentDiscNo,
+                      c.discNumber.isEmpty ? '无碟号' : '碟号 ${c.discNumber}',
+                      enabled: c.discNumber.isNotEmpty,
+                    ),
+                    if (LyricCompanionSettings.enabled.value)
+                      _fieldTile(
+                        context,
+                        MatchField.lyrics,
+                        '歌词',
+                        widget.currentLyrics.isEmpty
+                            ? '无'
+                            : '有（${widget.currentLyrics.length} 字符）',
+                        widget.prefetchedLyrics == null ||
+                                widget.prefetchedLyrics!.isEmpty
+                            ? '未获取到歌词'
+                            : '已匹配（${widget.prefetchedLyrics!.length} 字符）',
+                        enabled:
+                            widget.prefetchedLyrics != null &&
+                            widget.prefetchedLyrics!.isNotEmpty,
+                        note: widget.companionConnected
+                            ? null
+                            : '未连接到增强插件（写入 NAS 不可用）',
+                      ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: _selected.isEmpty
+                        ? null
+                        : () => Navigator.of(context).pop(_selected),
+                    child: Text('应用所选 (${_selected.length})'),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        );
       },
     );
   }
@@ -2567,7 +2600,8 @@ class _MatchApplySheetState extends State<_MatchApplySheet> {
     String? note,
   }) {
     final theme = Theme.of(context);
-    final changed = note == null &&
+    final changed =
+        note == null &&
         oldValue.trim() != newValue.trim() &&
         newValue.isNotEmpty;
     return CheckboxListTile(
@@ -2583,8 +2617,9 @@ class _MatchApplySheetState extends State<_MatchApplySheet> {
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
-                decoration:
-                    changed && _selected.contains(field) ? TextDecoration.lineThrough : null,
+                decoration: changed && _selected.contains(field)
+                    ? TextDecoration.lineThrough
+                    : null,
               ),
             ),
           ),
@@ -2654,16 +2689,14 @@ class _MatchApplySheetState extends State<_MatchApplySheet> {
 
     final oldCover = widget.currentCoverUrl;
     final newCover = c.picUrl;
-    final changed = hasCover &&
+    final changed =
+        hasCover &&
         (oldCover == null || oldCover.isEmpty || oldCover != newCover);
 
     return CheckboxListTile(
       value: selected,
       enabled: hasCover,
-      title: Text(
-        '封面',
-        style: theme.textTheme.titleSmall,
-      ),
+      title: Text('封面', style: theme.textTheme.titleSmall),
       // 删除 secondary 小图，改为 subtitle 内「原 → 新」两图对比
       subtitle: Row(
         children: [

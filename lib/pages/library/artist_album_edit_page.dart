@@ -47,8 +47,9 @@ class _ArtistAlbumEditPageState extends State<ArtistAlbumEditPage> {
   final MetadataCompanionService _companion = MetadataCompanionService.instance;
   final _formKey = GlobalKey<FormState>();
 
-  late final TextEditingController _nameController =
-      TextEditingController(text: widget.name);
+  late final TextEditingController _nameController = TextEditingController(
+    text: widget.name,
+  );
 
   /// 换图后的本地预览文件路径（保存时读字节上传）。
   String? _pendingCoverPath;
@@ -116,7 +117,6 @@ class _ArtistAlbumEditPageState extends State<ArtistAlbumEditPage> {
           hideBottomControls: true,
           lockAspectRatio: true,
           toolbarColor: const Color(0xFF212121),
-          statusBarLight: false,
           toolbarWidgetColor: Colors.white,
           activeControlsWidgetColor: Colors.white,
           backgroundColor: Colors.black,
@@ -148,8 +148,10 @@ class _ArtistAlbumEditPageState extends State<ArtistAlbumEditPage> {
         EntityEditKind.artist => 1,
         EntityEditKind.album => 2,
       };
-      final covers = await SongMatchService.instance
-          .searchCovers(keyword, searchType: searchType);
+      final covers = await SongMatchService.instance.searchCovers(
+        keyword,
+        searchType: searchType,
+      );
       if (!mounted) return;
       if (covers.isEmpty) {
         AppToast.show(context, '未搜索到封面，请检查数据源插件', type: ToastType.error);
@@ -159,10 +161,7 @@ class _ArtistAlbumEditPageState extends State<ArtistAlbumEditPage> {
         context: context,
         backgroundColor: Colors.transparent,
         isScrollControlled: true,
-        builder: (_) => CoverSearchSheet(
-          candidates: covers,
-          keyword: keyword,
-        ),
+        builder: (_) => CoverSearchSheet(candidates: covers, keyword: keyword),
       );
       if (selected == null || !mounted) return;
 
@@ -214,8 +213,9 @@ class _ArtistAlbumEditPageState extends State<ArtistAlbumEditPage> {
         // 转码失败用原字节（PNG/JPEG 也能直接通过）
       }
       final dir = await getTemporaryDirectory();
-      final file =
-          File('${dir.path}/cover_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final file = File(
+        '${dir.path}/cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
       await file.writeAsBytes(out);
       return file.path;
     } catch (e) {
@@ -314,9 +314,8 @@ class _ArtistAlbumEditPageState extends State<ArtistAlbumEditPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? '请输入名称'
-                  : null,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? '请输入名称' : null,
             ),
           ],
         ),
@@ -389,7 +388,11 @@ class _ArtistAlbumEditPageState extends State<ArtistAlbumEditPage> {
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.edit_outlined, size: 18, color: Colors.white),
+                  : const Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      color: Colors.white,
+                    ),
             ),
           ),
         ),
@@ -406,12 +409,7 @@ class _ArtistAlbumEditPageState extends State<ArtistAlbumEditPage> {
         borderRadius: shape,
         color: theme.colorScheme.surfaceContainerHighest,
       ),
-      child: Center(
-        child: Text(
-          initial,
-          style: const TextStyle(fontSize: 48),
-        ),
-      ),
+      child: Center(child: Text(initial, style: const TextStyle(fontSize: 48))),
     );
   }
 }

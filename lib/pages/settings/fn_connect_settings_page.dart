@@ -131,8 +131,10 @@ class _FnConnectSettingsPageState extends State<FnConnectSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bottomPadding =
-        AppPageScaffold.scrollableBottomPadding(context, showMiniPlayer: false);
+    final bottomPadding = AppPageScaffold.scrollableBottomPadding(
+      context,
+      showMiniPlayer: false,
+    );
 
     return AppPageScaffold(
       extendBodyBehindAppBar: true,
@@ -262,7 +264,8 @@ class _FnConnectSettingsPageState extends State<FnConnectSettingsPage> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     buildDefaultDragHandles: false,
-                    onReorderItem: (oldIndex, newIndex) {
+                    onReorder: (oldIndex, newIndex) {
+                      if (newIndex > oldIndex) newIndex -= 1;
                       final next = List<ProbeCandidateGroup>.from(order);
                       final item = next.removeAt(oldIndex);
                       next.insert(newIndex, item);
@@ -403,8 +406,7 @@ class _FnConnectSettingsPageState extends State<FnConnectSettingsPage> {
                   // 已禁用分组整体隐藏（即使探测结果里还有残留条目）。
                   final userOrder =
                       AppFnConnectionSettings.connectionOrder.value;
-                  final disabled =
-                      AppFnConnectionSettings.disabledGroups.value;
+                  final disabled = AppFnConnectionSettings.disabledGroups.value;
                   final grouped =
                       <ProbeCandidateGroup, List<ProbeCandidateResult>>{};
                   for (final r in results) {

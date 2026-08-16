@@ -48,6 +48,9 @@ app.*.map.json
 .fvm/
 .fvm/flutter_sdk
 
+# Repository-local HarmonyOS Flutter SDK used for porting/build verification.
+/.tooling/
+
 # ============================================================
 # Android
 # ============================================================

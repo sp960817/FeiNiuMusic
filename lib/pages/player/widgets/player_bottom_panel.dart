@@ -1020,9 +1020,8 @@ class _PlaylistSheetState extends State<_PlaylistSheet> {
                                 return AnimatedBuilder(
                                   animation: animation,
                                   builder: (context, child) {
-                                    final animValue = Curves.easeInOut.transform(
-                                      animation.value,
-                                    );
+                                    final animValue = Curves.easeInOut
+                                        .transform(animation.value);
                                     final elevation = ui.lerpDouble(
                                       0,
                                       6,
@@ -1041,15 +1040,10 @@ class _PlaylistSheetState extends State<_PlaylistSheet> {
                                 );
                               },
                               // 随机（漫游）模式下队列顺序无意义，禁用拖拽排序。
-                              // 注意不能传 null：ReorderableListView.builder 的构造
-                              // 断言要求 onReorderItem 非 null（否则断言失败，且因
-                              // 处于 Watch.builder 内会被包装成 SignalEffectException）。
-                              onReorderItem: (oldIndex, newIndex) {
+                              onReorder: (oldIndex, newIndex) {
                                 if (mode == PlaybackMode.shuffle) return;
-                                widget.player.reorderQueue(
-                                  oldIndex,
-                                  newIndex,
-                                );
+                                if (newIndex > oldIndex) newIndex -= 1;
+                                widget.player.reorderQueue(oldIndex, newIndex);
                               },
                               itemCount: total,
                               itemBuilder: (context, index) {
@@ -1070,11 +1064,10 @@ class _PlaylistSheetState extends State<_PlaylistSheet> {
                                     accent: scheme.primary,
                                     textColor: textColor,
                                     secondaryTextColor: secondaryTextColor,
-                                    onTap: () => widget.player.skipToIndex(
-                                      index,
-                                    ),
-                                    onRemove: () => widget.player
-                                        .removeFromQueue(index),
+                                    onTap: () =>
+                                        widget.player.skipToIndex(index),
+                                    onRemove: () =>
+                                        widget.player.removeFromQueue(index),
                                   ),
                                 );
                               },
@@ -1388,15 +1381,15 @@ class _QueueLimitDialog extends StatelessWidget {
                 const SizedBox(height: 8),
                 Slider(
                   value: limit.toDouble().clamp(
-                        AppPlaybackQueueSettings.minQueueLimit.toDouble(),
-                        AppPlaybackQueueSettings.maxQueueLimit.toDouble(),
-                      ),
+                    AppPlaybackQueueSettings.minQueueLimit.toDouble(),
+                    AppPlaybackQueueSettings.maxQueueLimit.toDouble(),
+                  ),
                   min: AppPlaybackQueueSettings.minQueueLimit.toDouble(),
                   max: AppPlaybackQueueSettings.maxQueueLimit.toDouble(),
                   divisions:
                       (AppPlaybackQueueSettings.maxQueueLimit -
-                              AppPlaybackQueueSettings.minQueueLimit) ~/
-                          10,
+                          AppPlaybackQueueSettings.minQueueLimit) ~/
+                      10,
                   label: '$limit 首',
                   onChanged: (value) {
                     AppPlaybackQueueSettings.setMaxQueueLength(value.round());

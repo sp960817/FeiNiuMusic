@@ -222,7 +222,6 @@ class _AppAppearanceSettingsPageState extends State<AppAppearanceSettingsPage> {
           // never blend into the phone's system bar (which was the "点几下才
           // 点得到" bug on notched screens).
           toolbarColor: const Color(0xFF212121),
-          statusBarLight: false,
           toolbarWidgetColor: Colors.white,
           activeControlsWidgetColor: Colors.white,
           backgroundColor: Colors.black,

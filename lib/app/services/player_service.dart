@@ -30,6 +30,7 @@ import 'listening_recorder_service.dart';
 import 'volume_schedule_service.dart';
 import '../state/settings_state.dart';
 import '../state/song_state.dart';
+import '../utils/platform_capabilities.dart';
 import '../../components/feedback/app_toast.dart';
 export '../state/player_state.dart';
 import '../state/player_state.dart';
@@ -90,6 +91,10 @@ class PlayerService with WidgetsBindingObserver {
   /// 升级到 media_kit 的歌曲（just_audio 解码 FLAC 帧超限 `Buffer too small`
   /// 时当场升级，由 FFmpeg 无损解码）。会话内持续生效。
   final Set<String> _mediaKitEscalateSongIds = {};
+
+  /// HarmonyOS 系统解码失败后改走服务端 MP3 转码，避免尝试不存在的
+  /// media_kit/libmpv 原生后端。
+  final Set<String> _harmonyCompatibilityTranscodeSongIds = {};
 
   /// 手动切换解码器覆盖表：`Map<songId, EngineKind>`（会话级）。用户点歌曲信息
   /// 面板的解码 tag 手动指定引擎时写入，_computeEngineKinds 命中后优先于
@@ -569,8 +574,11 @@ class PlayerService with WidgetsBindingObserver {
     if (activeHls != null && activeCodec != null) {
       final curSong = currentSong.value;
       if (curSong != null) {
-        StreamCacheService.instance
-            .cacheTranscodedSong(curSong.id, activeCodec, activeHls);
+        StreamCacheService.instance.cacheTranscodedSong(
+          curSong.id,
+          activeCodec,
+          activeHls,
+        );
       }
     }
     _activeTranscodeHlsUrl = null;
@@ -641,9 +649,27 @@ class PlayerService with WidgetsBindingObserver {
   ///   ExoPlayer 播，且每首独立成 run）；
   /// - 其余 → `routeForSong` 默认路由，flag=false。
   Future<({List<EngineKind> kinds, List<bool> transcodeFlags})>
-      _computeEngineKinds(List<SongEntity> songs) async {
+  _computeEngineKinds(List<SongEntity> songs) async {
     final results = await Future.wait(
       songs.map((s) async {
+        final harmonyCompatibilityTranscode =
+            isHarmonyOS &&
+            (_harmonyCompatibilityTranscodeSongIds.contains(s.id) ||
+                await FeiNiuTranscodeService.instance
+                    .requiresHarmonyCompatibilityTranscode(s));
+        if (!_forceDirectSongIds.contains(s.id) &&
+            !_transcodeFailedSongIds.contains(s.id) &&
+            harmonyCompatibilityTranscode) {
+          _debugLog(
+            'engineKind ${s.title} -> justAudio (HarmonyOS MP3 transcode)',
+          );
+          return (kind: EngineKind.justAudio, transcode: true);
+        }
+        // HarmonyOS 不构造 media_kit。用户手动选直连时也只让系统解码器
+        // 尝试播放，失败会进入错误恢复并自动切 MP3 转码。
+        if (isHarmonyOS) {
+          return (kind: EngineKind.justAudio, transcode: false);
+        }
         if (_mediaKitEscalateSongIds.contains(s.id)) {
           _debugLog('engineKind ${s.title} -> mediaKit (escalated)');
           return (kind: EngineKind.mediaKit, transcode: false);
@@ -703,12 +729,15 @@ class PlayerService with WidgetsBindingObserver {
     // 预载整 run，若把多首转码歌并入同 run，会并行打爆转码会话。单例保证
     // 每次激活只对当前这一首转码，且相邻同引擎歌不并入。
     if (logicalIndex < tc.length && tc[logicalIndex]) {
-      return (start: logicalIndex, end: logicalIndex, localIndex: 0, kind: kind);
+      return (
+        start: logicalIndex,
+        end: logicalIndex,
+        localIndex: 0,
+        kind: kind,
+      );
     }
     var s = logicalIndex;
-    while (s > 0 &&
-        k[s - 1] == kind &&
-        !(s - 1 < tc.length && tc[s - 1])) {
+    while (s > 0 && k[s - 1] == kind && !(s - 1 < tc.length && tc[s - 1])) {
       s--;
     }
     var e = logicalIndex;
@@ -1539,14 +1568,14 @@ class PlayerService with WidgetsBindingObserver {
       // - 已是 mp3/opus 或已降级仍失败 → 完全失败：标记退直连（不重转码，
       //   防死循环）。
       if (!isMediaKitError &&
-          FeiNiuTranscodeService.instance.activeTranscodeIds
-              .contains(failedSong.id)) {
-        final codec =
-            FeiNiuTranscodeService.instance.effectiveCodecFor(failedSong.id);
+          FeiNiuTranscodeService.instance.activeTranscodeIds.contains(
+            failedSong.id,
+          )) {
+        final codec = FeiNiuTranscodeService.instance.effectiveCodecFor(
+          failedSong.id,
+        );
         if (codec == 'flac' &&
-            !FeiNiuTranscodeService.instance.isDowngradedToMp3(
-              failedSong.id,
-            )) {
+            !FeiNiuTranscodeService.instance.isDowngradedToMp3(failedSong.id)) {
           _debugLog(
             'transcode ${failedSong.title} flac decode failed -> downgrade mp3',
           );
@@ -1566,6 +1595,20 @@ class PlayerService with WidgetsBindingObserver {
         _quitTranscodeFor(failedSong.id);
         // 落回下方分支：isFlacTooLarge/isSystemDecoderFail 走 media_kit 直连，
         // 普通 just_audio 失败走直连，DSF 等回落 routeForSong → mediaKit 直连。
+      }
+
+      if (isHarmonyOS && (isFlacTooLarge || isSystemDecoderFail)) {
+        _harmonyCompatibilityTranscodeSongIds.add(failedSong.id);
+        _quitTranscodeFor(failedSong.id);
+        _applyEngineKinds(await _computeEngineKinds(list));
+        await _activateLogicalIndex(
+          failedIndex,
+          initialPosition: seekPos > Duration.zero ? seekPos : null,
+        );
+        if (wasPlaying) {
+          await _startPlayback();
+        }
+        return;
       }
 
       if (isFlacTooLarge || isSystemDecoderFail) {
@@ -2222,7 +2265,8 @@ class PlayerService with WidgetsBindingObserver {
     final bounds = _runBounds(index);
     final cur = currentIndex.value;
     final sameRun = cur >= 0 && cur >= bounds.start && cur <= bounds.end;
-    if (sameRun && index >= _activeRunStart &&
+    if (sameRun &&
+        index >= _activeRunStart &&
         index < _activeRunStart + _activeEngine.sequenceLength) {
       await _activeEngine.skipToIndex(index - _activeRunStart);
     } else {
@@ -2608,7 +2652,7 @@ class PlayerService with WidgetsBindingObserver {
     if (oldQueue.isEmpty) return;
     if (oldIndex < 0 || oldIndex >= oldQueue.length) return;
     // newIndex 为移除 oldIndex 元素后的目标下标（0..oldQueue.length），
-    // 由调用方（ReorderableListView.onReorderItem）负责调整。
+    // 由调用方（ReorderableListView.onReorder）负责调整。
     if (newIndex < 0 || newIndex > oldQueue.length) return;
     final targetIndex = newIndex;
     if (targetIndex == oldIndex) return;
@@ -3719,11 +3763,19 @@ class PlayerService with WidgetsBindingObserver {
   /// DSF/APE 等原 media_kit 格式在 just_audio 上解码失败 → 无限重试转码）。
   Future<AudioSource?> _transcodedSourceFor(SongEntity song) async {
     final svc = FeiNiuTranscodeService.instance;
-    final codec = svc.effectiveCodecFor(song.id);
+    final harmonyCompatibilityTranscode =
+        isHarmonyOS &&
+        (_harmonyCompatibilityTranscodeSongIds.contains(song.id) ||
+            await svc.requiresHarmonyCompatibilityTranscode(song));
+    final codec = harmonyCompatibilityTranscode
+        ? 'mp3'
+        : svc.effectiveCodecFor(song.id);
 
     // 1) 转码完整缓存命中 → 本地文件零流量。
-    final cached = await StreamCacheService.instance
-        .transcodeCompleteFileFor(song.id, codec);
+    final cached = await StreamCacheService.instance.transcodeCompleteFileFor(
+      song.id,
+      codec,
+    );
     if (cached != null) {
       if (kDebugMode) {
         debugPrint(
@@ -3734,10 +3786,14 @@ class PlayerService with WidgetsBindingObserver {
     }
 
     // 2) 需要转码判定：不转 → 直接直连（不标记，正常回落）。
-    if (!await svc.shouldTranscode(song)) return null;
+    if (!harmonyCompatibilityTranscode && !await svc.shouldTranscode(song)) {
+      return null;
+    }
 
     // 3) 在线 HLS。
-    final hlsUrl = await svc.transcodeHlsUrlFor(song);
+    final hlsUrl = harmonyCompatibilityTranscode
+        ? await svc.transcodeMp3UrlFor(song)
+        : await svc.transcodeHlsUrlFor(song);
     if (hlsUrl == null) {
       // 需要转码但转码请求失败 → 标记失败，本会话不再重试转码（回落
       // routeForSong：DSF→mediaKit 直连，普通→just_audio 直连）。

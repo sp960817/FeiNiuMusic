@@ -18,6 +18,7 @@ import 'android_platform_service.dart';
 import 'cover_local_cache.dart';
 import 'media_notification_car_lyrics.dart';
 import 'player_service.dart';
+import '../utils/platform_capabilities.dart';
 
 class MediaNotificationService {
   static AudioHandler? _audioHandler;
@@ -25,19 +26,15 @@ class MediaNotificationService {
   static bool _initStarted = false;
 
   static Future<void> init({bool force = false}) async {
-    // 媒体通知（MediaSession / 通知栏）走 audio_service + 系统媒体中心，
-    // 仅 Android 实现。桌面端（Windows）直接跳过，播放本身不依赖它。
-    if (!io.Platform.isAndroid) return;
+    // Android 走 MediaSession，HarmonyOS 走 AVSession。桌面端没有对应实现。
+    if (!supportsSystemMediaSession) return;
     if (_audioHandler != null || _initStarted) return;
     await MediaNotificationSettings.ensureLoaded();
     final player = PlayerService.instance;
     final snap = player.snapshot.value;
     if (!force && snap.song == null && !snap.isPlaying) {
-      // Android Auto / 系统媒体中心通过 MediaBrowserService 发现应用：
-      // 即使当前没有播放内容也要注册 MediaSession，否则首次连接车机时
-      // 启动器里看不到本应用（要等用户手动播一首歌才会出现）。
-      // 其他平台保持原有延迟注册行为。
-      if (io.Platform.isAndroid) {
+      // Android Auto 与 HarmonyOS 系统媒体中心都需要提前注册媒体会话。
+      if (supportsSystemMediaSession) {
         try {
           await _initHandler();
         } catch (e) {
@@ -316,9 +313,7 @@ class _FeiNiuAudioHandler extends BaseAudioHandler
     // artUri: 当前曲目优先 file:// 本地路径；队列/浏览用 content://。
     Uri? artUri;
     if (song.coverId != null && song.coverId!.isNotEmpty) {
-      if (current &&
-          _cachedCoverPath != null &&
-          _cachedCoverPath!.isNotEmpty) {
+      if (current && _cachedCoverPath != null && _cachedCoverPath!.isNotEmpty) {
         artUri = Uri.file(_cachedCoverPath!);
       } else if (_cachedCoverUri != null) {
         artUri = _cachedCoverUri;
@@ -1110,9 +1105,7 @@ class _FeiNiuAudioHandler extends BaseAudioHandler
         _coverResolving) {
       return;
     }
-    final item = current != null
-        ? _itemFromSong(current, current: true)
-        : null;
+    final item = current != null ? _itemFromSong(current, current: true) : null;
     // itemKey 必须包含车载歌词行：当「通知显示歌词」关闭时，title/artist/
     // displaySubtitle 不含歌词，连续歌词行会产生相同 itemKey 被去重吞掉，
     // 导致车机收不到歌词更新。

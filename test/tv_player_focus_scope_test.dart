@@ -64,8 +64,14 @@ void main() {
       ),
     );
     await tester.pump();
+    // Flutter 3.41 enforces the physical key state for repeat events: a repeat
+    // must be bracketed by the corresponding down/up events.
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowLeft);
     await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowRight);
     await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowRight);
     await tester.pump();
     expect(prev, 1);
     expect(next, 1);

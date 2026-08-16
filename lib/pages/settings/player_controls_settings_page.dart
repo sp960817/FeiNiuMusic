@@ -144,7 +144,8 @@ class _PlayerControlsSettingsPageState
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     buildDefaultDragHandles: false,
-                    onReorderItem: (oldIndex, newIndex) {
+                    onReorder: (oldIndex, newIndex) {
+                      if (newIndex > oldIndex) newIndex -= 1;
                       final next = List<String>.from(order);
                       final item = next.removeAt(oldIndex);
                       next.insert(newIndex, item);

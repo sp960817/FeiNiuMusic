@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 import '../../../app/services/feiniu/api_client.dart';
 import '../../../app/services/feiniu/api_models.dart';
@@ -130,10 +129,7 @@ class HomeLargeLayout extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      HomeSectionHeader(
-                        title: '最近播放',
-                        onViewAll: onOpenRecent,
-                      ),
+                      HomeSectionHeader(title: '最近播放', onViewAll: onOpenRecent),
                       const SizedBox(height: 4),
                       Expanded(
                         child: recentSongs.isEmpty
@@ -155,10 +151,7 @@ class HomeLargeLayout extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      HomeSectionHeader(
-                        title: '最新歌曲',
-                        onViewAll: onOpenSongs,
-                      ),
+                      HomeSectionHeader(title: '最新歌曲', onViewAll: onOpenSongs),
                       const SizedBox(height: 4),
                       Expanded(
                         child: recentTracks.isEmpty
@@ -180,10 +173,7 @@ class HomeLargeLayout extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      HomeSectionHeader(
-                        title: '收藏',
-                        onViewAll: onOpenFavorite,
-                      ),
+                      HomeSectionHeader(title: '收藏', onViewAll: onOpenFavorite),
                       const SizedBox(height: 4),
                       Expanded(
                         child: favoriteSongs.isEmpty
@@ -295,9 +285,7 @@ class _LargeScrollableSongList extends StatelessWidget {
     return ListView.separated(
       // TV：加大预建范围，保证方向键能遍历到视口外的行（不会因行未 build
       // 而找不到下一焦点目标，误跳出列表跳到下方专辑）。
-      scrollCacheExtent: isTv
-          ? const ScrollCacheExtent.pixels(600)
-          : const ScrollCacheExtent.pixels(0),
+      cacheExtent: isTv ? 600 : 0,
       padding: const EdgeInsets.symmetric(vertical: 4),
       itemCount: songs.length,
       separatorBuilder: (_, _) => const SizedBox(height: 2),
@@ -308,9 +296,7 @@ class _LargeScrollableSongList extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: () => onTap(song),
-            onLongPress: onLongPress == null
-                ? null
-                : () => onLongPress!(song),
+            onLongPress: onLongPress == null ? null : () => onLongPress!(song),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
               child: Row(
@@ -406,11 +392,8 @@ class _LargeScrollablePlaylistRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         itemCount: playlists.length,
         separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (context, i) => _PlaylistCard(
-          playlist: playlists[i],
-          isTv: isTv,
-          onTap: onTap,
-        ),
+        itemBuilder: (context, i) =>
+            _PlaylistCard(playlist: playlists[i], isTv: isTv, onTap: onTap),
       ),
     );
   }
@@ -440,46 +423,46 @@ class _PlaylistCard extends StatelessWidget {
           AspectRatio(
             aspectRatio: 1,
             child: Container(
-            decoration: BoxDecoration(
-              color: theme.cardColor,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: coverId != null && coverId.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: CachedNetworkImage(
-                      imageUrl: FeiNiuApiClient.instance.coverUrl(
-                        coverId,
-                        size: 400,
-                        updatedAt: playlist.updatedAt,
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: coverId != null && coverId.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: CachedNetworkImage(
+                        imageUrl: FeiNiuApiClient.instance.coverUrl(
+                          coverId,
+                          size: 400,
+                          updatedAt: playlist.updatedAt,
+                        ),
+                        httpHeaders: FeiNiuApiClient.imageAuthHeaders(),
+                        fit: BoxFit.cover,
+                        placeholder: (_, _) => _placeholder(context),
+                        errorWidget: (_, _, _) => _placeholder(context),
                       ),
-                      httpHeaders: FeiNiuApiClient.imageAuthHeaders(),
-                      fit: BoxFit.cover,
-                      placeholder: (_, _) => _placeholder(context),
-                      errorWidget: (_, _, _) => _placeholder(context),
-                    ),
-                  )
-                : _placeholder(context),
+                    )
+                  : _placeholder(context),
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          playlist.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 1),
-        Text(
-          '${playlist.trackCount} 首',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 11,
-            color: theme.colorScheme.onSurfaceVariant,
+          const SizedBox(height: 6),
+          Text(
+            playlist.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
-        ),
-      ],
+          const SizedBox(height: 1),
+          Text(
+            '${playlist.trackCount} 首',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
     final wrapped = GestureDetector(onTap: () => onTap(playlist), child: card);
@@ -538,4 +521,3 @@ class _LargeEmpty extends StatelessWidget {
     );
   }
 }
-

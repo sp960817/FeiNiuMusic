@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:signals_flutter/signals_flutter.dart' hide computed;
 
@@ -31,18 +30,18 @@ class SongsPage extends StatefulWidget {
   final String? initialSortKey;
   final bool? initialAscending;
 
-  const SongsPage({
-    super.key,
-    this.initialSortKey,
-    this.initialAscending,
-  });
+  const SongsPage({super.key, this.initialSortKey, this.initialAscending});
 
   @override
   State<SongsPage> createState() => _SongsPageState();
 }
 
 class _SongsPageState extends State<SongsPage>
-    with SignalsMixin, DeferredPageInitMixin, SongMultiSelectMixin, PrimaryTabRefreshMixin {
+    with
+        SignalsMixin,
+        DeferredPageInitMixin,
+        SongMultiSelectMixin,
+        PrimaryTabRefreshMixin {
   static const String _prefsSortKey = 'songs_sort_key';
   static const String _prefsSortAsc = 'songs_sort_asc';
   static const double _itemExtent = 64;
@@ -124,25 +123,37 @@ class _SongsPageState extends State<SongsPage>
     int loaded = 0, skipped = 0;
     for (final song in songs.take(count)) {
       if (song.coverId != null && song.coverId!.isNotEmpty) {
-        final url = api.coverUrl(song.coverId!, size: 120, updatedAt: song.updatedAt);
-        unawaited(precacheImage(
-          CachedNetworkImageProvider(url, headers: headers),
-          context,
-        ).then((_) => loaded++).catchError((e) {
-          debugPrint('[SongsPage] cover precache failed song=${song.title} coverId=${song.coverId}: $e');
-          return 0; // 预缓存失败静默，不阻断后续封面
-        }));
+        final url = api.coverUrl(
+          song.coverId!,
+          size: 120,
+          updatedAt: song.updatedAt,
+        );
+        unawaited(
+          precacheImage(
+            CachedNetworkImageProvider(url, headers: headers),
+            context,
+          ).then((_) => loaded++).catchError((e) {
+            debugPrint(
+              '[SongsPage] cover precache failed song=${song.title} coverId=${song.coverId}: $e',
+            );
+            return 0; // 预缓存失败静默，不阻断后续封面
+          }),
+        );
       } else {
         skipped++;
       }
     }
     if (loaded > 0 || skipped > 0) {
-      debugPrint('[SongsPage] preloadCovers count=${songs.length} loaded=$loaded skipped=$skipped');
+      debugPrint(
+        '[SongsPage] preloadCovers count=${songs.length} loaded=$loaded skipped=$skipped',
+      );
     }
   }
 
   Future<void> _loadSongs({bool forceRefresh = false}) async {
-    debugPrint('[SongsPage] _loadSongs forceRefresh=$forceRefresh sort=${_apiSortParam()}');
+    debugPrint(
+      '[SongsPage] _loadSongs forceRefresh=$forceRefresh sort=${_apiSortParam()}',
+    );
     _currentPage = 1;
     _hasMoreSongs = true;
 
@@ -155,17 +166,17 @@ class _SongsPageState extends State<SongsPage>
           size: _pageSize,
           sort: sort,
         );
-        debugPrint('[SongsPage] fetch ok total=${pageData.total} items=${pageData.list.length}');
-        final songs = pageData.list
-            .map((t) {
-              try {
-                return _trackService.trackToSongEntity(t.toJson());
-              } catch (e) {
-                debugPrint('[SongsPage] trackToSongEntity error: $e');
-                rethrow;
-              }
-            })
-            .toList();
+        debugPrint(
+          '[SongsPage] fetch ok total=${pageData.total} items=${pageData.list.length}',
+        );
+        final songs = pageData.list.map((t) {
+          try {
+            return _trackService.trackToSongEntity(t.toJson());
+          } catch (e) {
+            debugPrint('[SongsPage] trackToSongEntity error: $e');
+            rethrow;
+          }
+        }).toList();
         _totalSongs = pageData.total;
         _hasMoreSongs = _totalSongs > 0
             ? songs.length < _totalSongs
@@ -233,7 +244,9 @@ class _SongsPageState extends State<SongsPage>
         },
         toJson: (data) {
           final json = jsonEncode(data.map((s) => s.toMap()).toList());
-          debugPrint('[SongsPage] toJson items=${data.length} size=${json.length}B');
+          debugPrint(
+            '[SongsPage] toJson items=${data.length} size=${json.length}B',
+          );
           return json;
         },
         fetchCallback: onData,
@@ -241,7 +254,9 @@ class _SongsPageState extends State<SongsPage>
 
       if (cached != null) {
         // 缓存命中 → 全屏转圈消失，右上角转圈保持直到后台刷新结束
-        debugPrint('[SongsPage] cache hit, songs=${cached.length}, background refresh started');
+        debugPrint(
+          '[SongsPage] cache hit, songs=${cached.length}, background refresh started',
+        );
         if (mounted) {
           _songs.value = cached;
           _isLoading.value = false;
@@ -379,21 +394,19 @@ class _SongsPageState extends State<SongsPage>
   }
 
   void _openSearch() {
-    Navigator.pushNamed(context, AppRoutes.search, arguments: SearchCategory.song);
+    Navigator.pushNamed(
+      context,
+      AppRoutes.search,
+      arguments: SearchCategory.song,
+    );
   }
 
   /// 打开文件夹视图（服务端增强）。未开启时引导到设置页。
   void _openFolders() {
     if (LyricCompanionSettings.enabled.value) {
-      Navigator.of(context).push(
-        buildAppPageRoute((_) => const FoldersPage()),
-      );
+      Navigator.of(context).push(buildAppPageRoute((_) => const FoldersPage()));
     } else {
-      AppToast.show(
-        context,
-        '请先在设置 → 元数据管理开启「服务端增强」',
-        type: ToastType.error,
-      );
+      AppToast.show(context, '请先在设置 → 元数据管理开启「服务端增强」', type: ToastType.error);
     }
   }
 
@@ -426,7 +439,11 @@ class _SongsPageState extends State<SongsPage>
         return SortSheet(
           title: '歌曲排序',
           options: const [
-            SortOption(key: 'title', label: '歌曲名', icon: Icons.music_note_outlined),
+            SortOption(
+              key: 'title',
+              label: '歌曲名',
+              icon: Icons.music_note_outlined,
+            ),
             SortOption(key: 'duration', label: '创建时间', icon: Icons.access_time),
           ],
           currentKey: _sortKey.value,
@@ -461,14 +478,15 @@ class _SongsPageState extends State<SongsPage>
             leading: useBottomNavigation || AppLayoutSettings.tvMode.value
                 ? null
                 : (isMultiSelecting
-                    ? IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: exitMultiSelect,
-                      )
-                    : IconButton(
-                        icon: const Icon(Icons.menu_rounded),
-                        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                      )),
+                      ? IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: exitMultiSelect,
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.menu_rounded),
+                          onPressed: () =>
+                              _scaffoldKey.currentState?.openDrawer(),
+                        )),
             actions: isMultiSelecting
                 ? [
                     SelectAllButton(
@@ -600,10 +618,11 @@ class _SongsPageState extends State<SongsPage>
                       child: ListView.builder(
                         controller: _listController,
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
-                        itemCount: songs.length + (_isLoadingMore.value ? 1 : 0),
+                        itemCount:
+                            songs.length + (_isLoadingMore.value ? 1 : 0),
                         itemExtent: _itemExtent,
                         addAutomaticKeepAlives: true,
-                        scrollCacheExtent: ScrollCacheExtent.pixels(300),
+                        cacheExtent: 300,
                         itemBuilder: (context, index) {
                           if (index >= songs.length) {
                             return const Center(
@@ -613,7 +632,8 @@ class _SongsPageState extends State<SongsPage>
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2),
+                                    strokeWidth: 2,
+                                  ),
                                 ),
                               ),
                             );
@@ -665,10 +685,8 @@ class _SongsPageState extends State<SongsPage>
           if (artistGuid != null) {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => ArtistDetailPage(
-                  artistName: name,
-                  artistGuid: artistGuid,
-                ),
+                builder: (_) =>
+                    ArtistDetailPage(artistName: name, artistGuid: artistGuid),
               ),
             );
           }
@@ -678,10 +696,8 @@ class _SongsPageState extends State<SongsPage>
           if (guid != null) {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => AlbumDetailPage(
-                  albumName: name,
-                  albumGuid: guid,
-                ),
+                builder: (_) =>
+                    AlbumDetailPage(albumName: name, albumGuid: guid),
               ),
             );
           }
@@ -713,11 +729,7 @@ class _SongListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final leading = ArtworkWidget(
-      song: song,
-      size: 48,
-      borderRadius: 8,
-    );
+    final leading = ArtworkWidget(song: song, size: 48, borderRadius: 8);
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
