@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "module description"
+      "value": "FeiNiu Music for HarmonyOS NEXT"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "description"
+      "value": "FeiNiu Music"
     },
     {
       "name": "EntryAbility_label",
-      "value": "feiniu_music"
+      "value": "FeiNiu Music"
     }
   ]
 }

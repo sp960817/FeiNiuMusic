@@ -2,15 +2,15 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "模块描述"
+      "value": "飞牛音乐 HarmonyOS NEXT 客户端"
     },
     {
       "name": "EntryAbility_desc",
-      "value": "description"
+      "value": "飞牛音乐"
     },
     {
       "name": "EntryAbility_label",
-      "value": "feiniu_music"
+      "value": "飞牛音乐"
     }
   ]
 }
