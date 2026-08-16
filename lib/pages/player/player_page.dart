@@ -492,10 +492,7 @@ class _PosterPlayerLayout extends StatelessWidget {
   final PlayerService player;
   final VoidCallback onTapLyrics;
 
-  const _PosterPlayerLayout({
-    required this.player,
-    required this.onTapLyrics,
-  });
+  const _PosterPlayerLayout({required this.player, required this.onTapLyrics});
 
   @override
   Widget build(BuildContext context) {
@@ -528,12 +525,7 @@ class _PosterPlayerLayout extends StatelessWidget {
             Expanded(
               child: Container(
                 width: double.infinity,
-                padding: EdgeInsets.fromLTRB(
-                  24,
-                  headerPad,
-                  24,
-                  bottomPad,
-                ),
+                padding: EdgeInsets.fromLTRB(24, headerPad, 24, bottomPad),
                 // Transparent so the cover-color + 流光 background shows through,
                 // matching the lyrics page (no solid white panel).
                 child: Column(
@@ -600,10 +592,7 @@ class _PosterPlayerLayout extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                         horizontal: _posterTrackInset,
                       ),
-                      child: PosterControls(
-                        player: player,
-                        alignToTrack: true,
-                      ),
+                      child: PosterControls(player: player, alignToTrack: true),
                     ),
                     // 底部留白：让控制栏整体抬离屏幕底部
                     SizedBox(height: bottomInset > 20 ? 16 : 28),
@@ -650,6 +639,9 @@ class _PosterArtwork extends StatelessWidget {
             children: [
               // 模糊底：仅覆盖顶部渐变区（与清晰封面顶部透明区同高对齐），
               // 不让封面底部渐隐时透出模糊带。
+              // 注意：封面必须按磨砂带 cover 裁切填满（不能像清晰封面那样
+              // 用方形溢出布局）——否则 ImageFiltered 的图层会携带整幅方形
+              // 封面溢出到海报底部，在英雄区底缘渲染出一条全亮度的封面横线。
               Positioned(
                 top: 0,
                 left: 0,
@@ -657,11 +649,28 @@ class _PosterArtwork extends StatelessWidget {
                 height: frostHeight,
                 child: ClipRect(
                   child: ImageFiltered(
-                    imageFilter: ui.ImageFilter.blur(
-                      sigmaX: 18,
-                      sigmaY: 18,
+                    imageFilter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final side =
+                            (constraints.maxWidth > constraints.maxHeight
+                                    ? constraints.maxWidth
+                                    : constraints.maxHeight)
+                                .clamp(1.0, 2000.0);
+                        return ClipRect(
+                          child: SizedBox.expand(
+                            child: FittedBox(
+                              fit: BoxFit.cover,
+                              child: SizedBox(
+                                width: side,
+                                height: side,
+                                child: _buildSquareCover(context, side),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    child: _buildCover(context),
                   ),
                 ),
               ),
@@ -681,13 +690,7 @@ class _PosterArtwork extends StatelessWidget {
                     Color(0x00FFFFFF),
                     Color(0x00FFFFFF),
                   ],
-                  stops: [
-                    0.0,
-                    frostHeight / heroHeight,
-                    0.62,
-                    0.95,
-                    1.0,
-                  ],
+                  stops: [0.0, frostHeight / heroHeight, 0.62, 0.95, 1.0],
                 ).createShader(rect),
                 child: _buildCover(context),
               ),
@@ -718,46 +721,49 @@ class _PosterArtwork extends StatelessWidget {
   Widget _buildCover(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final song = songSignal.value;
         // 防御：尺寸钳制为正的有限值，避免横竖屏切换/首帧瞬态时
         // boxSize 为 0 或 NaN，连锁导致 ShaderMask/RotationTransition
         // 产生 Matrix4 非有限值 / RRect NaN 崩溃。
         final maxW = constraints.maxWidth.isFinite ? constraints.maxWidth : 0.0;
-        final maxH = constraints.maxHeight.isFinite ? constraints.maxHeight : 0.0;
+        final maxH = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : 0.0;
         final boxSize = (maxW > maxH ? maxW : maxH).clamp(1.0, 2000.0);
-        final child = song == null
-            ? Skeletonizer(
-                enabled: true,
-                child: _ArtworkPlaceholder(
-                  border: BorderRadius.zero,
-                  label: '',
-                ),
-              )
-            : ArtworkWidget(
-                song: song,
-                size: boxSize,
-                // 海报模式为大封面全屏布局：无论「圆形封面」开关如何
-                // 均整幅方形铺满、不旋转（旋转仅对圆形封面有意义）。
-                borderRadius: 0,
-                preferOriginal: true,
-                keepPreviousUntilLoaded: true,
-                placeholder: Skeletonizer(
-                  enabled: true,
-                  child: _ArtworkPlaceholder(
-                    border: BorderRadius.zero,
-                    label: song.title,
-                  ),
-                ),
-              );
         return ClipRect(
           child: OverflowBox(
             maxWidth: boxSize,
             maxHeight: boxSize,
-            child: child,
+            child: _buildSquareCover(context, boxSize),
           ),
         );
       },
     );
+  }
+
+  /// 方形封面（真实封面 / 占位骨架）。size 为方形边长。
+  Widget _buildSquareCover(BuildContext context, double size) {
+    final song = songSignal.value;
+    return song == null
+        ? Skeletonizer(
+            enabled: true,
+            child: _ArtworkPlaceholder(border: BorderRadius.zero, label: ''),
+          )
+        : ArtworkWidget(
+            song: song,
+            size: size,
+            // 海报模式为大封面全屏布局：无论「圆形封面」开关如何
+            // 均整幅方形铺满、不旋转（旋转仅对圆形封面有意义）。
+            borderRadius: 0,
+            preferOriginal: true,
+            keepPreviousUntilLoaded: true,
+            placeholder: Skeletonizer(
+              enabled: true,
+              child: _ArtworkPlaceholder(
+                border: BorderRadius.zero,
+                label: song.title,
+              ),
+            ),
+          );
   }
 }
 
@@ -1088,7 +1094,9 @@ class _PosterSeekBarState extends State<_PosterSeekBar> with SignalsMixin {
             // 时间标签：位于进度条下方，两端与轨道内缩（_posterTrackInset）对齐，
             // 不超出进度条两端的实际长度。
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: _posterTrackInset),
+              padding: const EdgeInsets.symmetric(
+                horizontal: _posterTrackInset,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1130,8 +1138,7 @@ class _PlayerArtwork extends StatelessWidget {
       valueListenable: AppLayoutSettings.effectiveTabletModeNotifier,
       builder: (context, effectiveTabletMode, _) {
         final isTabletLayout =
-            effectiveTabletMode &&
-            MediaQuery.sizeOf(context).width >= 720;
+            effectiveTabletMode && MediaQuery.sizeOf(context).width >= 720;
         final isTv = AppLayoutSettings.tvMode.value;
         return Watch.builder(
           builder: (context) {
@@ -1153,8 +1160,9 @@ class _PlayerArtwork extends StatelessWidget {
                     // 塌缩成 0，导致封面贴顶、居中失效、底栏消失）。
                     final width = constraints.maxWidth;
                     final boxSize = width < maxSize ? width : maxSize;
-                    final size =
-                        boxSize < constraints.maxHeight ? boxSize : constraints.maxHeight;
+                    final size = boxSize < constraints.maxHeight
+                        ? boxSize
+                        : constraints.maxHeight;
                     return Center(
                       child: SizedBox(
                         width: size,
@@ -1175,10 +1183,12 @@ class _PlayerArtwork extends StatelessWidget {
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
                   final boxSize = width < maxSize ? width : maxSize;
-                  final size =
-                      boxSize < constraints.maxHeight ? boxSize : constraints.maxHeight;
-                  final borderRadius =
-                      PlayerBackgroundSettings.roundCover.value ? size / 2 : 12.0;
+                  final size = boxSize < constraints.maxHeight
+                      ? boxSize
+                      : constraints.maxHeight;
+                  final borderRadius = PlayerBackgroundSettings.roundCover.value
+                      ? size / 2
+                      : 12.0;
                   return Center(
                     child: SizedBox(
                       width: size,
